@@ -10,7 +10,7 @@ def clean_filename(title):
     filename = filename.replace(' ', '_').replace('?', '').replace(':', '').replace('(', '').replace(')', '')
     return filename[:60]
 
-def find_article_starts(pdf_path):
+def find_article_starts(pdf_path, start_page=7):
     """Find article start pages by looking for large/colorful text at page tops"""
     try:
         import pdfplumber
@@ -22,11 +22,11 @@ def find_article_starts(pdf_path):
     article_starts = []
     
     with pdfplumber.open(pdf_path) as pdf:
-        print(f"Scanning {len(pdf.pages)} pages for large/colorful headers...")
+        print(f"Scanning {len(pdf.pages)} pages for large/colorful headers starting from page {start_page}...")
         
         for page_num, page in enumerate(pdf.pages):
-            # Skip first few pages (cover, TOC, etc.)
-            if page_num < 7:
+            # Skip pages before start_page
+            if page_num + 1 < start_page:
                 continue
                 
             try:
@@ -68,13 +68,13 @@ def find_article_starts(pdf_path):
     
     return article_starts
 
-def split_pdf_by_headers(pdf_path, output_dir):
+def split_pdf_by_headers(pdf_path, output_dir, start_page=7):
     """Split PDF based on article header detection"""
     from pypdf import PdfReader, PdfWriter
     
     Path(output_dir).mkdir(parents=True, exist_ok=True)
     
-    article_starts = find_article_starts(pdf_path)
+    article_starts = find_article_starts(pdf_path, start_page)
     print(f"\nFound {len(article_starts)} article starts")
     
     if len(article_starts) < 5:
@@ -84,7 +84,7 @@ def split_pdf_by_headers(pdf_path, output_dir):
     reader = PdfReader(pdf_path)
     total_pages = len(reader.pages)
     
-    for i, (start_page, title) in enumerate(article_starts):
+    for i, (start_page_num, title) in enumerate(article_starts):
         # Determine end page
         if i + 1 < len(article_starts):
             end_page = article_starts[i + 1][0] - 1
@@ -95,19 +95,19 @@ def split_pdf_by_headers(pdf_path, output_dir):
         
         # Add pages (convert to 0-based indexing)
         pages_added = 0
-        for page_num in range(start_page - 1, min(end_page, total_pages)):
+        for page_num in range(start_page_num - 1, min(end_page, total_pages)):
             if 0 <= page_num < len(reader.pages):
                 writer.add_page(reader.pages[page_num])
                 pages_added += 1
         
         if pages_added > 0:
-            filename = f"{start_page:03d}_{clean_filename(title)}.pdf"
+            filename = f"{start_page_num:03d}_{clean_filename(title)}.pdf"
             output_path = Path(output_dir) / filename
             
             with open(output_path, 'wb') as output_file:
                 writer.write(output_file)
             
-            print(f"Created: {filename} ({pages_added} pages: {start_page}-{end_page})")
+            print(f"Created: {filename} ({pages_added} pages: {start_page_num}-{end_page})")
 
 def process_2023_document():
     """Process the 2023 document and split it into articles"""
@@ -118,9 +118,26 @@ def process_2023_document():
         print(f"PDF not found: {pdf_path}")
         return
     
-    print(f"Processing {pdf_path}...")
-    split_pdf_by_headers(pdf_path, output_dir)
+    print(f"Processing 2023 document: {pdf_path}...")
+    split_pdf_by_headers(pdf_path, output_dir, start_page=7)
+    print(f"\nDone! Articles saved to {output_dir}/")
+
+def process_2024_document():
+    """Process the 2024 document and split it into articles"""
+    pdf_path = "pdfs/document_2024.pdf"
+    output_dir = "pdfs/articles_2024"
+    
+    if not Path(pdf_path).exists():
+        print(f"PDF not found: {pdf_path}")
+        return
+    
+    print(f"Processing 2024 document: {pdf_path}...")
+    split_pdf_by_headers(pdf_path, output_dir, start_page=8)  # 2024 starts at page 8
     print(f"\nDone! Articles saved to {output_dir}/")
 
 if __name__ == "__main__":
+    print("Processing both documents...")
     process_2023_document()
+    print("\n" + "="*60 + "\n")
+    process_2024_document()
+    print("\nAll done! Both documents processed.")
