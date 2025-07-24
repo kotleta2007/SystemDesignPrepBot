@@ -8,6 +8,7 @@ dependencies = [
     "pdfplumber>=0.11.7",
     "pypdf>=5.8.0",
     "python-dotenv>=1.1.1",
+    "python-telegram-bot>=22.3",
     "requests>=2.32.4",
     "tqdm>=4.67.1",
 ]
